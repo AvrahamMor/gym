@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Dumbbell, Sparkles, Timer, Zap } from 'lucide-react';
+import { Dumbbell, Sparkles, Timer, Zap, Cloud } from 'lucide-react';
 
 export function Header() {
   const {
@@ -11,6 +11,8 @@ export function Header() {
     timerActive,
     timerRemaining,
     stopRestTimer,
+    isCloudActive,
+    setCurrentTab,
   } = useApp();
 
   const isBabzi = currentUserId === 'babzi';
@@ -43,6 +45,18 @@ export function Header() {
                 <Zap className="w-2.5 h-2.5 fill-current" />
                 3.8 Flash High
               </span>
+              <button
+                onClick={() => setCurrentTab('settings')}
+                className={`text-[9px] font-black px-1.5 py-0.5 rounded-full border flex items-center gap-1 shadow-sm transition-colors ${
+                  isCloudActive
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    : 'bg-slate-800 text-slate-400 border-white/[0.08] hover:text-white'
+                }`}
+                title={isCloudActive ? 'ענן מחובר ומסונכרן בזמן אמת' : 'הגדר סנכרון ענן ב-Settings'}
+              >
+                <Cloud className="w-2.5 h-2.5 stroke-[2.5]" />
+                <span>{isCloudActive ? 'ענן' : 'מקומי'}</span>
+              </button>
             </div>
             <p className="text-[11px] text-slate-400 font-medium">אברהם & באבזי • חיטוב ואימונים</p>
           </div>

@@ -1,5 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { INITIAL_PROFILES, WORKOUT_DAYS } from '../data/initialData';
+import { 
+  syncStateToCloud, 
+  listenToCloudSync, 
+  isFirebaseActive, 
+  saveFirebaseConfig,
+  getFirebaseConfig 
+} from '../services/firebase';
 
 const AppContext = createContext();
 
@@ -65,13 +72,50 @@ export function AppProvider({ children }) {
   const [timerRemaining, setTimerRemaining] = useState(null);
   const [timerTotal, setTimerTotal] = useState(null);
   const [timerActive, setTimerActive] = useState(false);
+  const [isCloudActive, setIsCloudActive] = useState(() => isFirebaseActive());
+  const [lastSyncTime, setLastSyncTime] = useState(null);
 
-  // שמירה ל-localStorage בכל שינוי
+  // האזנה לסנכרון ענן בזמן אמת מ-Firebase
+  useEffect(() => {
+    const unsubscribe = listenToCloudSync((cloudData) => {
+      if (cloudData) {
+        setData((prev) => ({
+          ...prev,
+          profiles: cloudData.profiles || prev.profiles,
+          workoutLogs: cloudData.workoutLogs || prev.workoutLogs,
+          nutritionLogs: cloudData.nutritionLogs || prev.nutritionLogs,
+          weightLogs: cloudData.weightLogs || prev.weightLogs,
+          cardioLogs: cloudData.cardioLogs || prev.cardioLogs,
+          chatMessages: cloudData.chatMessages || prev.chatMessages,
+        }));
+        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      }
+    });
+
+    setIsCloudActive(isFirebaseActive());
+    return () => unsubscribe();
+  }, []);
+
+  // שמירה ל-localStorage וסנכרון מיידי ל-Firebase
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      if (isFirebaseActive()) {
+        syncStateToCloud({
+          profiles: data.profiles,
+          workoutLogs: data.workoutLogs,
+          nutritionLogs: data.nutritionLogs,
+          weightLogs: data.weightLogs,
+          cardioLogs: data.cardioLogs,
+          chatMessages: data.chatMessages,
+        }).then((ok) => {
+          if (ok) {
+            setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+          }
+        });
+      }
     } catch (e) {
-      console.error('Failed to save storage:', e);
+      console.error('Failed to save/sync storage:', e);
     }
   }, [data]);
 
@@ -334,6 +378,12 @@ export function AppProvider({ children }) {
     }));
   };
 
+  const updateCloudConfig = (config) => {
+    saveFirebaseConfig(config);
+    setIsCloudActive(isFirebaseActive());
+    window.location.reload();
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -341,6 +391,9 @@ export function AppProvider({ children }) {
         currentUserId: data.currentUserId,
         currentProfile,
         apiKey: data.apiKey,
+        isCloudActive,
+        lastSyncTime,
+        updateCloudConfig,
         activeDayId,
         setActiveDayId,
         currentTab,
